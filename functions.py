@@ -119,3 +119,48 @@ if __name__ == "__main__":
     [plt.scatter(x[0],x[1],color="r") for x in listA]
     [plt.scatter(x[0],x[1],color="b") for x in listB]
     plt.show()
+
+
+
+def projected_grad_desc():
+
+    pass
+
+
+def BB_step_length(ak, ak1, grad_f):
+    '''
+    Determine the Barzilai-Borwein step length for the projected gradient descent
+    algorithm.
+
+    s^k = a ^{k+1} - a^k
+    z^k = grad_f(a^{k+1}) - grad_f(a^k)
+    '''
+
+    if np.dot(ak1 - ak, grad_f(ak1) - grad_f(ak)) <= 0:
+        return 1
+    
+    return np.dot(ak1 - ak, ak1 - ak) / np.dot(ak1 - ak, grad_f(ak1) - grad_f(ak))
+    
+
+def kernal_gaussian(x, y, sigma):
+    '''
+    Compute the Gaussian kernel between two vectors x and y.
+    '''
+
+    return np.exp(-np.linalg.norm(x - y, 2)**2 / (2 * sigma**2))
+
+
+def kernal_laplacian(x,y,sigma):
+    '''
+    Compute the Laplacian kernel between two vectors x and y.
+    '''
+
+    return np.exp(-np.linalg.norm(x - y,2) / sigma)
+    
+
+def kernal_inv_multiquadratic(x,y,sigma):
+    '''
+    Compute the inverse multiquadratic kernel between two vectors x and y.
+    '''
+
+    return 1 / np.sqrt(1 + np.linalg.norm(x - y, 2)**2 / sigma**2)
