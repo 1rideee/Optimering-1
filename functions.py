@@ -109,25 +109,8 @@ def TestLinear(w,b,n_A,n_B,margin,**kwargs):
     return(list_A,list_B)
 
 
-if __name__ == "__main__":
-    w = np.array([1.,1.])
-    b = 1.
-    n_A = 10
-    n_B = 8
-    margin = 5.e-1
-    listA,listB = TestLinear(w,b,n_A,n_B,margin)
-    [plt.scatter(x[0],x[1],color="r") for x in listA]
-    [plt.scatter(x[0],x[1],color="b") for x in listB]
-    plt.show()
 
-
-
-def projected_grad_desc():
-
-    pass
-
-
-def BB_step_length(ak, ak1, grad_f):
+def BB_step_length(ak, ak1, grad_f, taumax=1e5, taumin=1e-5):
     '''
     Determine the Barzilai-Borwein step length for the projected gradient descent
     algorithm.
@@ -137,7 +120,7 @@ def BB_step_length(ak, ak1, grad_f):
     '''
 
     if np.dot(ak1 - ak, grad_f(ak1) - grad_f(ak)) <= 0:
-        return 1
+        return taumax
     
     return np.dot(ak1 - ak, ak1 - ak) / np.dot(ak1 - ak, grad_f(ak1) - grad_f(ak))
     
