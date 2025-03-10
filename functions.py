@@ -164,3 +164,72 @@ def kernal_inv_multiquadratic(x,y,sigma):
     '''
 
     return 1 / np.sqrt(1 + np.linalg.norm(x - y, 2)**2 / sigma**2)
+
+
+
+def f(alpha, A):
+    return 0.5*np.dot(alpha, np.dot(A,alpha)) - np.sum(alpha)
+
+
+def gradientf(alpha, A):
+    return np.dot(A, alpha) - 1
+    
+
+def gradient_descent(alpha0, G, y , tau, niter):
+    alpha = alpha0
+    Y = np.diag(y)
+    A = np.dot(Y,np.dot(G,Y))
+
+
+    for i in range(niter):
+        d_k = projection(alpha - tau*gradientf(alpha, A), y=y, Y=Y) - alpha
+        alpha = alpha + d_k 
+        # tau * gradientf(alpha, G, Y)
+
+    return alpha
+
+
+def projection(alpha, y, Y, C=1.0, tol=1e-6, max_iter=100, delta=1e-3):  
+    beta = alpha.copy()
+    
+    
+    low, high = -10, 10  
+    for _ in range(max_iter):
+        
+
+
+        inner_low = np.dot(y, alpha_Lagrange(beta, low, Y, C))
+        inner_high = np.dot(y, alpha_Lagrange(beta, high, Y, C))
+
+        if inner_low  > 0:
+            while np.dot(y, alpha_Lagrange(beta, low, Y, C)) < 0 and np.dot(y, alpha_Lagrange(beta, high, Y, C))>0:
+                high = low 
+                low = low - delta
+
+        if inner_high < 0:
+            while np.dot(y, alpha_Lagrange(beta, low, Y, C)) < 0 and np.dot(y, alpha_Lagrange(beta, high, Y, C))>0:
+                low = high
+                high = high + delta
+
+        lambda_mid = (low + high) / 2.0
+        
+        projected_alpha = alpha_Lagrange(beta, lambda_mid, Y, C)
+    
+        constraint_value = np.dot(y, projected_alpha)
+
+        if abs(constraint_value) < tol:
+            return projected_alpha  
+    
+        if constraint_value > 0:
+            high = lambda_mid
+        else:
+            low = lambda_mid
+            
+    return projected_alpha, "Never converged" 
+
+
+def alpha_Lagrange(beta, lam, Y, C=1):
+    projected_alpha = np.zeros(len(beta))
+    for i in range(len(beta)):
+            projected_alpha[i] = np.median([beta[i] + lam * Y[i][i], 0, C])
+    return projected_alpha
