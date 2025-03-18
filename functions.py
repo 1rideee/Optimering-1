@@ -216,3 +216,68 @@ def alpha_Lagrange(beta, lam, Y, C=1):
     for i in range(len(beta)):
             projected_alpha[i] = np.median([beta[i] + lam * Y[i][i], 0, C])
     return projected_alpha
+
+
+def gradient_descent(alpha0, G, y , tau0, niter, C=100, tol = 1e-7):
+    '''
+    Perform the gradient descent algorithm with a projected gradient step.
+
+    Parameters
+    ----------
+    alpha0 : numpy array
+        Initial guess for the alpha vector.
+    G : numpy array
+        The Gram matrix.
+    y : numpy array
+        The target vector.
+    tau0 : float
+        Initial step length.
+    niter : int
+        Number of iterations.
+    C : float, optional
+        The penalty parameter. The default is 100.
+    tol : float, optional
+        Tolerance for the convergence. The default is 1e-7.
+
+    '''
+
+    alpha = alpha0
+    Y = np.diag(y)
+    #Saves the A matrix to save on computation time
+    A = np.dot(Y,np.dot(G,Y))
+    tau = tau0
+
+    for i in range(niter):
+        
+        d_k = projection(alpha - tau*gradientf(alpha, A), y=y, Y=Y, C=C) - alpha
+        
+        # Check for convergence when the largest component of the gradient is smaller than the tolerance
+        if np.max(np.abs(d_k)) < tol:
+            print("Converged after", i, "iterations")
+            return alpha
+        
+        alpha = alpha + d_k 
+
+        #Creates the Barzilai-Borwein step length
+        tau = BB_step_length(alpha-d_k, alpha, gradientf, A, taumax=1e5, taumin=1e-5)
+    
+    print("Did not converge after", niter, "iterations")
+    return alpha
+
+
+def BB_step_length(ak, ak1, grad_f, A, taumax=1e5, taumin=1e-5):
+    '''
+    Determine the Barzilai-Borwein step length for the projected gradient descent
+    algorithm.
+
+    s^k = a ^{k+1} - a^k
+    z^k = grad_f(a^{k+1}) - grad_f(a^k)
+    '''
+    
+    
+    nevner = np.dot(ak1 - ak, grad_f(ak1, A) - grad_f(ak, A))
+    if  nevner<= 0:
+        return taumax
+    
+    tau = np.dot(ak1 - ak, ak1 - ak) / nevner
+    return min(max(tau, taumax), taumin)
