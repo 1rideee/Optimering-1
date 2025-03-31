@@ -9,8 +9,6 @@ from numpy.random import default_rng
 
 def TestLinear(w,b,n_A,n_B,margin,**kwargs):
     '''
-    
-
     Parameters
     ----------
     w : non-zero vector
@@ -173,14 +171,37 @@ def gradient_descent(alpha0, G, y , tau, niter):
 
 
 def projection(alpha, y, Y, C=1.0, tol=1e-6, max_iter=100, delta=1e-3):  
+    """
+    Project the vector alpha onto the feasible region defined by the constraints.
+    Parameters
+    ----------
+    alpha : numpy array
+        The vector to be projected.
+    y : numpy array
+        The target vector.
+    Y : numpy array
+        The diagonal matrix of the target vector.
+    C : float, optional
+        The penalty parameter. The default is 1.
+    tol : float, optional
+        The tolerance for the convergence. The default is 1e-6.
+    max_iter : int, optional
+        The maximum number of iterations. The default is 100.
+    delta : float, optional
+        The step size for the binary search. The default is 1e-3.
+    Returns
+    -------
+    projected_alpha : numpy array
+        The projected vector.
+    """
+
     beta = alpha.copy()
     
     
     low, high = -10, 10  
     for _ in range(max_iter):
         
-
-
+        # Check if the current alpha is within the feasible region
         inner_low = np.dot(y, alpha_Lagrange(beta, low, Y, C))
         inner_high = np.dot(y, alpha_Lagrange(beta, high, Y, C))
 
@@ -194,12 +215,14 @@ def projection(alpha, y, Y, C=1.0, tol=1e-6, max_iter=100, delta=1e-3):
                 low = high
                 high = high + delta
 
+        # Perform binary search to find the Lagrange multiplier
         lambda_mid = (low + high) / 2.0
         
         projected_alpha = alpha_Lagrange(beta, lambda_mid, Y, C)
     
         constraint_value = np.dot(y, projected_alpha)
-
+        
+        # Check if the constraint is satisfied
         if abs(constraint_value) < tol:
             return projected_alpha  
     
@@ -212,6 +235,24 @@ def projection(alpha, y, Y, C=1.0, tol=1e-6, max_iter=100, delta=1e-3):
 
 
 def alpha_Lagrange(beta, lam, Y, C=1):
+    """
+    Compute the Lagrange multiplier for the projection step.
+    Parameters
+    ----------
+    beta : numpy array
+        The current alpha vector.
+        lam : float
+        The Lagrange multiplier.
+        Y : numpy array
+        The diagonal matrix of the target vector.
+        C : float, optional
+        The penalty parameter. The default is 1.
+    Returns
+    -------
+    projected_alpha : numpy array
+        The projected alpha vector.
+    
+    """
     projected_alpha = np.zeros(len(beta))
     for i in range(len(beta)):
             projected_alpha[i] = np.median([beta[i] + lam * Y[i][i], 0, C])
@@ -281,3 +322,93 @@ def BB_step_length(ak, ak1, grad_f, A, taumax=1e5, taumin=1e-5):
     
     tau = np.dot(ak1 - ak, ak1 - ak) / nevner
     return min(max(tau, taumax), taumin)
+
+
+
+
+def gradient_descent_linesearch(alpha0, G, y , tau0, niter, C=100, L = 10, tol = 1e-10):
+    """"
+    Gradient descent with backtracking line search
+    
+    Parameters
+    ----------
+
+    alpha0 : np.array
+        Initial point
+    G : np.array
+        Kernel matrix
+    y : np.array
+        Labels
+    tau0 : float
+        Initial step size
+    niter : int
+        Number of iterations
+    C : float
+        Regularization parameter
+    L : int
+        Number of iterations before reference function is updated
+
+    tol : float
+        Tolerance for convergence
+
+    Returns
+    -------
+    alpha : np.array
+        Optimal alpha
+    """
+    alpha = alpha0
+    Y = np.diag(y)
+    A = np.dot(Y,np.dot(G,Y))
+    tau = tau0
+
+    f_ref = np.inf
+    f_best = f(alpha, A)
+    f_c = f_best
+    ell = 0
+    f_ks = np.zeros(niter)
+    for i in range(niter):
+
+
+        d_k = projection(alpha - tau*gradientf(alpha, A), y=y, Y=Y, C=C) - alpha
+
+        if np.max(np.abs(d_k)) < tol:
+            print("Converged after", i, "iterations")
+            return alpha, f_ks
+        
+        
+        f_k = f(alpha, A)
+        f_ks[i] = f_k
+        if f_k < f_best:
+            f_best = f_k
+            f_c = f_k
+            ell = 0
+        else:
+            f_c = np.max([f_c, f_k])
+            ell = ell + 1
+        if ell == L:
+            f_ref = f_c
+            f_c = f_k
+            ell = 0
+
+        if ell!=0:
+            print(ell, end=" ")
+
+        if f(alpha + d_k, A) > f_ref:
+            dot1 = np.dot(d_k, np.dot(A, d_k))
+            dot2 = np.dot(d_k, np.dot(A, alpha))
+            dot3 = np.dot(alpha, np.dot(A, d_k))
+            dot4 = np.sum(d_k)
+            theta = - (0.5*dot2 + 0.5 *dot3 - dot4)/dot1
+            print("theta", theta, np.shape(alpha), np.shape(d_k))
+            
+        else:
+            theta = 1
+
+        alpha = alpha + theta * d_k
+        
+        tau = BB_step_length(alpha-theta*d_k, alpha, gradientf, A, taumax=1e5, taumin=1e-5)
+
+
+    print("Did not converge after", niter, "iterations")
+    
+    return alpha, f_ks
