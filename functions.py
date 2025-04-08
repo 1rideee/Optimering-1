@@ -130,7 +130,7 @@ def kernal_linear(x, y):
 
     return np.dot(x, y)
 
-def kernal_gaussian(x, y, sigma):
+def kernal_gaussian(x, y, sigma=1):
     '''
     Compute the Gaussian kernel between two vectors x and y.
     '''
@@ -138,7 +138,7 @@ def kernal_gaussian(x, y, sigma):
     return np.exp(-np.linalg.norm(x - y, 2)**2 / (2 * sigma**2))
 
 
-def kernal_laplacian(x,y,sigma):
+def kernal_laplacian(x,y,sigma=1):
     '''
     Compute the Laplacian kernel between two vectors x and y.
     '''
@@ -146,7 +146,7 @@ def kernal_laplacian(x,y,sigma):
     return np.exp(-np.linalg.norm(x - y,2) / sigma)
     
 
-def kernal_inv_multiquadratic(x,y,sigma):
+def kernal_inv_multiquadratic(x,y,sigma=1):
     '''
     Compute the inverse multiquadratic kernel between two vectors x and y.
     '''
@@ -210,17 +210,21 @@ def projection(alpha, y, Y, C=1.0, tol=1e-6, max_iter=100, delta=1e-3):
         
         # Check if the current alpha is within the feasible region
         inner_low = np.dot(y, alpha_Lagrange(beta, low, Y, C))
-        inner_high = np.dot(y, alpha_Lagrange(beta, high, Y, C))
-
+        
         if inner_low  > 0:
-            while np.dot(y, alpha_Lagrange(beta, low, Y, C)) < 0 and np.dot(y, alpha_Lagrange(beta, high, Y, C))>0:
+            cond= True
+            while cond:
                 high = low 
                 low = low - delta
+                cond = np.dot(y, alpha_Lagrange(beta, low, Y, C)) < 0 and np.dot(y, alpha_Lagrange(beta, high, Y, C))>0
 
+        inner_high = np.dot(y, alpha_Lagrange(beta, high, Y, C))
         if inner_high < 0:
-            while np.dot(y, alpha_Lagrange(beta, low, Y, C)) < 0 and np.dot(y, alpha_Lagrange(beta, high, Y, C))>0:
+            cond= True
+            while cond:
                 low = high
                 high = high + delta
+                cond = np.dot(y, alpha_Lagrange(beta, low, Y, C)) < 0 and np.dot(y, alpha_Lagrange(beta, high, Y, C))>0
 
         # Perform binary search to find the Lagrange multiplier
         lambda_mid = (low + high) / 2.0
@@ -323,12 +327,12 @@ def BB_step_length(ak, ak1, grad_f, A, taumax=1e5, taumin=1e-5):
     '''
     
     
-    nevner = np.dot(ak1 - ak, grad_f(ak1, A) - grad_f(ak, A))
+    nevner = np.dot((ak1 - ak), (grad_f(ak1, A) - grad_f(ak, A)))
     if  nevner<= 0:
         return taumax
     
-    tau = np.dot(ak1 - ak, ak1 - ak) / nevner
-    return min(max(tau, taumax), taumin)
+    tau = np.dot((ak1 - ak), (ak1 - ak)) / nevner
+    return max(min(tau, taumax), taumin)
 
 
 
