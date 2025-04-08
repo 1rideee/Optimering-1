@@ -123,6 +123,13 @@ def BB_step_length(ak, ak1, grad_f, taumax=1e5, taumin=1e-5):
     return np.dot(ak1 - ak, ak1 - ak) / np.dot(ak1 - ak, grad_f(ak1) - grad_f(ak))
     
 
+def kernal_linear(x, y):
+    '''
+    Compute the linear kernel between two vectors x and y.
+    '''
+
+    return np.dot(x, y)
+
 def kernal_gaussian(x, y, sigma):
     '''
     Compute the Gaussian kernel between two vectors x and y.
@@ -156,18 +163,18 @@ def gradientf(alpha, A):
     return np.dot(A, alpha) - 1
     
 
-def gradient_descent(alpha0, G, y , tau, niter):
-    alpha = alpha0
-    Y = np.diag(y)
-    A = np.dot(Y,np.dot(G,Y))
+# def gradient_descent(alpha0, G, y , tau, niter):
+#     alpha = alpha0
+#     Y = np.diag(y)
+#     A = np.dot(Y,np.dot(G,Y))
 
 
-    for i in range(niter):
-        d_k = projection(alpha - tau*gradientf(alpha, A), y=y, Y=Y) - alpha
-        alpha = alpha + d_k 
-        # tau * gradientf(alpha, G, Y)
+#     for i in range(niter):
+#         d_k = projection(alpha - tau*gradientf(alpha, A), y=y, Y=Y) - alpha
+#         alpha = alpha + d_k 
+#         # tau * gradientf(alpha, G, Y)
 
-    return alpha
+#     return alpha
 
 
 def projection(alpha, y, Y, C=1.0, tol=1e-6, max_iter=100, delta=1e-3):  
@@ -196,9 +203,9 @@ def projection(alpha, y, Y, C=1.0, tol=1e-6, max_iter=100, delta=1e-3):
     """
 
     beta = alpha.copy()
+    low, high = -10, 10
     
-    
-    low, high = -10, 10  
+
     for _ in range(max_iter):
         
         # Check if the current alpha is within the feasible region
@@ -230,8 +237,8 @@ def projection(alpha, y, Y, C=1.0, tol=1e-6, max_iter=100, delta=1e-3):
             high = lambda_mid
         else:
             low = lambda_mid
-            
-    return projected_alpha, "Never converged" 
+    print("Warning: Maximum iterations reached without convergence.")
+    return projected_alpha
 
 
 def alpha_Lagrange(beta, lam, Y, C=1):
