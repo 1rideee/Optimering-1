@@ -108,20 +108,6 @@ def TestLinear(w,b,n_A,n_B,margin,**kwargs):
 
 
 
-def BB_step_length(ak, ak1, grad_f, taumax=1e5, taumin=1e-5):
-    '''
-    Determine the Barzilai-Borwein step length for the projected gradient descent
-    algorithm.
-
-    s^k = a ^{k+1} - a^k
-    z^k = grad_f(a^{k+1}) - grad_f(a^k)
-    '''
-
-    if np.dot(ak1 - ak, grad_f(ak1) - grad_f(ak)) <= 0:
-        return taumax
-    
-    return np.dot(ak1 - ak, ak1 - ak) / np.dot(ak1 - ak, grad_f(ak1) - grad_f(ak))
-    
 
 def kernal_linear(x, y):
     '''
@@ -177,7 +163,7 @@ def gradientf(alpha, A):
 #     return alpha
 
 
-def projection(alpha, y, Y, C=1.0, tol=1e-6, max_iter=100, delta=1e-3):  
+def projection(alpha, y, Y, C=1.0, tol=1e-6, max_iter=100, delta=1e-1):  
     """
     Project the vector alpha onto the feasible region defined by the constraints.
     Parameters
@@ -227,7 +213,10 @@ def projection(alpha, y, Y, C=1.0, tol=1e-6, max_iter=100, delta=1e-3):
                 cond = np.dot(y, alpha_Lagrange(beta, low, Y, C)) < 0 and np.dot(y, alpha_Lagrange(beta, high, Y, C))>0
 
         # Perform binary search to find the Lagrange multiplier
-        lambda_mid = (low + high) / 2.0
+        # lambda_mid = (low + high) / 2.0
+
+        lambda_mid = high - (high-low)* np.dot(y, alpha_Lagrange(beta, high, Y, C))/(np.dot(y, alpha_Lagrange(beta, high, Y, C))-np.dot(y, alpha_Lagrange(beta, low, Y, C)))
+        # print("lambda_mid", lambda_mid)
         
         projected_alpha = alpha_Lagrange(beta, lambda_mid, Y, C)
     
@@ -241,9 +230,8 @@ def projection(alpha, y, Y, C=1.0, tol=1e-6, max_iter=100, delta=1e-3):
             high = lambda_mid
         else:
             low = lambda_mid
-    print("Warning: Maximum iterations reached without convergence.")
+    print("Warning: Maximum iterations reached without convergence. lambda:", lambda_mid )
     return projected_alpha
-
 
 def alpha_Lagrange(beta, lam, Y, C=1):
     """
@@ -268,7 +256,6 @@ def alpha_Lagrange(beta, lam, Y, C=1):
     for i in range(len(beta)):
             projected_alpha[i] = np.median([beta[i] + lam * Y[i][i], 0, C])
     return projected_alpha
-
 
 def gradient_descent(alpha0, G, y , tau0, niter, C=100, tol = 1e-7):
     '''
@@ -301,20 +288,24 @@ def gradient_descent(alpha0, G, y , tau0, niter, C=100, tol = 1e-7):
 
     for i in range(niter):
         
-        d_k = projection(alpha - tau*gradientf(alpha, A), y=y, Y=Y, C=C) - alpha
+        d_k = projection(alpha - tau * gradientf(alpha, A), y=y, Y=Y, C=C) - alpha
         
         # Check for convergence when the largest component of the gradient is smaller than the tolerance
         if np.max(np.abs(d_k)) < tol:
             print("Converged after", i, "iterations")
             return alpha
         
+        if i%500 == 0:
+            print("Iteration", i, ":", np.max(np.abs(d_k))) 
+        
         alpha = alpha + d_k 
 
         #Creates the Barzilai-Borwein step length
-        tau = BB_step_length(alpha-d_k, alpha, gradientf, A, taumax=1e5, taumin=1e-5)
+        tau = BB_step_length((alpha-d_k), alpha, gradientf, A, taumax=1e5, taumin=1e-5)
     
-    print("Did not converge after", niter, "iterations")
+    print("Did not converge after", niter, "iterations", np.max(np.abs(d_k)))
     return alpha
+
 
 
 def BB_step_length(ak, ak1, grad_f, A, taumax=1e5, taumin=1e-5):
