@@ -149,21 +149,7 @@ def gradientf(alpha, A):
     return np.dot(A, alpha) - 1
     
 
-# def gradient_descent(alpha0, G, y , tau, niter):
-#     alpha = alpha0
-#     Y = np.diag(y)
-#     A = np.dot(Y,np.dot(G,Y))
-
-
-#     for i in range(niter):
-#         d_k = projection(alpha - tau*gradientf(alpha, A), y=y, Y=Y) - alpha
-#         alpha = alpha + d_k 
-#         # tau * gradientf(alpha, G, Y)
-
-#     return alpha
-
-
-def projection(alpha, y, Y, C=1.0, tol=1e-6, max_iter=100, delta=1e-1):  
+def projection(alpha, y, C=1.0, tol=1e-6, max_iter=1000, delta=1e-3):  
     """
     Project the vector alpha onto the feasible region defined by the constraints.
     Parameters
@@ -189,36 +175,35 @@ def projection(alpha, y, Y, C=1.0, tol=1e-6, max_iter=100, delta=1e-1):
     """
 
     beta = alpha.copy()
-    low, high = -10, 10
-    
+    low, high = -1, 1
+    inner_low = np.dot(y, alpha_Lagrange(beta, low, y, C))
+        
+    if inner_low  > 0:
+        cond= True
+        while cond:
+            high = low 
+            low = low - delta
+            cond = np.dot(y, alpha_Lagrange(beta, low, y, C)) < 0 and np.dot(y, alpha_Lagrange(beta, high, y, C))>0
+
+    inner_high = np.dot(y, alpha_Lagrange(beta, high, y, C))
+    if inner_high < 0:
+        cond= True
+        while cond:
+            low = high
+            high = high + delta
+            cond = np.dot(y, alpha_Lagrange(beta, low, y, C)) < 0 and np.dot(y, alpha_Lagrange(beta, high, y, C))>0
 
     for _ in range(max_iter):
-        
-        # Check if the current alpha is within the feasible region
-        inner_low = np.dot(y, alpha_Lagrange(beta, low, Y, C))
-        
-        if inner_low  > 0:
-            cond= True
-            while cond:
-                high = low 
-                low = low - delta
-                cond = np.dot(y, alpha_Lagrange(beta, low, Y, C)) < 0 and np.dot(y, alpha_Lagrange(beta, high, Y, C))>0
 
-        inner_high = np.dot(y, alpha_Lagrange(beta, high, Y, C))
-        if inner_high < 0:
-            cond= True
-            while cond:
-                low = high
-                high = high + delta
-                cond = np.dot(y, alpha_Lagrange(beta, low, Y, C)) < 0 and np.dot(y, alpha_Lagrange(beta, high, Y, C))>0
-
-        # Perform binary search to find the Lagrange multiplier
-        # lambda_mid = (low + high) / 2.0
-
-        lambda_mid = high - (high-low)* np.dot(y, alpha_Lagrange(beta, high, Y, C))/(np.dot(y, alpha_Lagrange(beta, high, Y, C))-np.dot(y, alpha_Lagrange(beta, low, Y, C)))
-        # print("lambda_mid", lambda_mid)
+        nevner = (np.dot(y, alpha_Lagrange(beta, high, y, C))-np.dot(y, alpha_Lagrange(beta, low, y, C)))
         
-        projected_alpha = alpha_Lagrange(beta, lambda_mid, Y, C)
+        if nevner !=0:
+            lambda_mid = high - (high-low)* np.dot(y, alpha_Lagrange(beta, high, y, C))/nevner
+            
+        else:
+            lambda_mid = (low + high) / 2.0
+        
+        projected_alpha = alpha_Lagrange(beta, lambda_mid, y, C)
     
         constraint_value = np.dot(y, projected_alpha)
         
@@ -230,10 +215,11 @@ def projection(alpha, y, Y, C=1.0, tol=1e-6, max_iter=100, delta=1e-1):
             high = lambda_mid
         else:
             low = lambda_mid
-    print("Warning: Maximum iterations reached without convergence. lambda:", lambda_mid )
-    return projected_alpha
+            
+    print("Warning: Maximum iterations reached without convergence. lambda:", lambda_mid)
+    return alpha
 
-def alpha_Lagrange(beta, lam, Y, C=1):
+def alpha_Lagrange(beta, lam, y, C):
     """
     Compute the Lagrange multiplier for the projection step.
     Parameters
@@ -242,22 +228,20 @@ def alpha_Lagrange(beta, lam, Y, C=1):
         The current alpha vector.
         lam : float
         The Lagrange multiplier.
-        Y : numpy array
-        The diagonal matrix of the target vector.
+        y : numpy array
+        The target vector.
         C : float, optional
-        The penalty parameter. The default is 1.
+        The penalty parameter. 
     Returns
     -------
     projected_alpha : numpy array
         The projected alpha vector.
     
     """
-    projected_alpha = np.zeros(len(beta))
-    for i in range(len(beta)):
-            projected_alpha[i] = np.median([beta[i] + lam * Y[i][i], 0, C])
-    return projected_alpha
+    
+    return np.median(np.array([beta + lam*y, np.zeros(len(beta)), np.ones(len(beta))*C]), axis=0)
 
-def gradient_descent(alpha0, G, y , tau0, niter, C=100, tol = 1e-7):
+def gradient_descent(alpha0, G, y , tau0, niter, C=100, tol = 1e-7, gradientf=gradientf, projection=projection):
     '''
     Perform the gradient descent algorithm with a projected gradient step.
 
@@ -287,8 +271,7 @@ def gradient_descent(alpha0, G, y , tau0, niter, C=100, tol = 1e-7):
     tau = tau0
 
     for i in range(niter):
-        
-        d_k = projection(alpha - tau * gradientf(alpha, A), y=y, Y=Y, C=C) - alpha
+        d_k = projection(alpha - tau * gradientf(alpha, A), y=y, C=C) - alpha
         
         # Check for convergence when the largest component of the gradient is smaller than the tolerance
         if np.max(np.abs(d_k)) < tol:
@@ -305,7 +288,6 @@ def gradient_descent(alpha0, G, y , tau0, niter, C=100, tol = 1e-7):
     
     print("Did not converge after", niter, "iterations", np.max(np.abs(d_k)))
     return alpha
-
 
 
 def BB_step_length(ak, ak1, grad_f, A, taumax=1e5, taumin=1e-5):
