@@ -175,7 +175,7 @@ def projection(alpha, y, C=1.0, tol=1e-6, max_iter=1000, delta=1e-3):
     """
 
     beta = alpha.copy()
-    low, high = -1, 1
+    low, high = -10, 10
     inner_low = np.dot(y, alpha_Lagrange(beta, low, y, C))
         
     if inner_low  > 0:
@@ -309,8 +309,7 @@ def BB_step_length(ak, ak1, grad_f, A, taumax=1e5, taumin=1e-5):
 
 
 
-
-def gradient_descent_linesearch(alpha0, G, y , tau0, niter, C=100, L = 10, tol = 1e-10):
+def gradient_descent_linesearch(alpha0, G, y , tau0, niter, C=100, L = 10, tol = 1e-10, f=f, gradient=gradientf, project=projection):
     """"
     Gradient descent with backtracking line search
     
@@ -350,15 +349,17 @@ def gradient_descent_linesearch(alpha0, G, y , tau0, niter, C=100, L = 10, tol =
     f_c = f_best
     ell = 0
     f_ks = np.zeros(niter)
+
     for i in range(niter):
 
-
-        d_k = projection(alpha - tau*gradientf(alpha, A), y=y, Y=Y, C=C) - alpha
+        d_k = project(alpha - tau*gradient(alpha, A), y=y, C=C) - alpha
 
         if np.max(np.abs(d_k)) < tol:
             print("Converged after", i, "iterations")
             return alpha, f_ks
         
+        if i%500 == 0:
+            print("Iteration", i, ":", np.max(np.abs(d_k))) 
         
         f_k = f(alpha, A)
         f_ks[i] = f_k
@@ -374,8 +375,7 @@ def gradient_descent_linesearch(alpha0, G, y , tau0, niter, C=100, L = 10, tol =
             f_c = f_k
             ell = 0
 
-        if ell!=0:
-            print(ell, end=" ")
+        
 
         if f(alpha + d_k, A) > f_ref:
             dot1 = np.dot(d_k, np.dot(A, d_k))
@@ -383,14 +383,14 @@ def gradient_descent_linesearch(alpha0, G, y , tau0, niter, C=100, L = 10, tol =
             dot3 = np.dot(alpha, np.dot(A, d_k))
             dot4 = np.sum(d_k)
             theta = - (0.5*dot2 + 0.5 *dot3 - dot4)/dot1
-            print("theta", theta, np.shape(alpha), np.shape(d_k))
+            # print("theta", theta, np.shape(alpha), np.shape(d_k))
             
         else:
             theta = 1
 
         alpha = alpha + theta * d_k
         
-        tau = BB_step_length(alpha-theta*d_k, alpha, gradientf, A, taumax=1e5, taumin=1e-5)
+        tau = BB_step_length(alpha-theta*d_k, alpha, gradient, A, taumax=1e5, taumin=1e-5)
 
 
     print("Did not converge after", niter, "iterations")
