@@ -1,7 +1,5 @@
-#Functions file for the main program
 
-
-
+from sklearn.metrics.pairwise import pairwise_kernels
 import numpy as np
 import matplotlib.pyplot as plt
 from numpy.random import default_rng
@@ -396,3 +394,83 @@ def gradient_descent_linesearch(alpha0, G, y , tau0, niter, C=100, L = 10, tol =
     print("Did not converge after", niter, "iterations")
     
     return alpha, f_ks
+
+
+
+
+def plot_db(x,y, alpha, ker = kernal_linear, C=5):
+    
+    w = compute_w(alpha, y, x, kernel = ker)
+
+    K = pairwise_kernels(x, metric=ker)  # Example kernel matrix
+    b = compute_b(alpha, y, K, C)
+
+
+    res = 100
+    xx, yy = np.meshgrid(np.linspace(-8, 8, res), np.linspace(-8, 8, res))
+
+    Z = np.array([w(np.array([xx.ravel()[i], yy.ravel()[i]])) for i in range(len(xx.ravel()))])+b
+
+    Z = Z.reshape(res,res)
+    print("Z", np.max(Z), np.min(Z))
+    plt.contourf(xx, yy, Z, levels=[-100,0,100],  colors= ["blue","red"], alpha=0.5)
+    
+
+    plt.scatter(x[:, 0], x[:, 1], c=y, cmap='coolwarm', edgecolors='k')
+    plt.title("Data points with boundary")
+    plt.xlabel("Feature 1")
+    plt.ylabel("Feature 2")
+    plt.show()
+    #plotting a 3d surface fo Z
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.plot_surface(xx, yy, Z, cmap='viridis', edgecolor='none')
+    ax.set_xlabel('X1')
+    ax.set_ylabel('X2')
+    ax.set_zlabel('Z')
+    ax.set_title('3D Surface Plot of Z')
+    plt.show()
+
+
+def compute_w(alpha, y, X_train, kernel):
+    """
+    Compute w(x) for the nonlinear SVM.
+    """
+
+    def w_function(x):
+        i = np.where((alpha > 0))[0]
+        return np.sum(alpha[i] * y[i] * pairwise_kernels( [x],X_train[i], metric=kernel)[0])
+    return w_function
+
+
+def compute_b(alpha, y, K, C):
+    """Estimate bias b using support vectors with 0 < alpha < C."""
+    support_vector_indices = np.where((alpha > 0) & (alpha < C))[0]
+    if len(support_vector_indices) == 0:
+        print("Warning: No suitable support vectors found to compute b.")
+        return 0.0
+
+    b_vals = []
+    i= support_vector_indices[0]
+
+    return y[i] - np.sum(alpha * y * K[:, i])
+
+
+def w_b(alpha, y, x, C):
+    
+    # I_s = np.where(alpha > 0 and alpha < C)
+    I_s = [i for i in range(len(alpha)) if alpha[i] > 0 and alpha[i] < C]
+    
+    w = np.sum(alpha[I_s]*y[I_s]*x[I_s].T, axis=1) 
+    b = y[I_s[0]] - np.dot(w, x[I_s[0]])
+    return w, b
+    
+
+
+def plot_solution(x, y, w, b):
+
+    plt.scatter(x[:,0], x[:,1], c=y)
+    plt.plot([-3, 3], [(-b - w[0] * (-3)) / w[1], (-b - w[0] * 3) / w[1]], 'k-')
+    #excact solution
+    plt.plot([-3, 3], [(-1 - 1 * (-3)), (-1 - 1 * 3) ], 'r--')
+    plt.show()
