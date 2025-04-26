@@ -373,15 +373,13 @@ def gradient_descent_linesearch(alpha0, G, y , tau0, niter, C=100, L = 10, tol =
             f_c = f_k
             ell = 0
 
-        
-
         if f(alpha + d_k, A) > f_ref:
+            
             dot1 = np.dot(d_k, np.dot(A, d_k))
             dot2 = np.dot(d_k, np.dot(A, alpha))
             dot3 = np.dot(alpha, np.dot(A, d_k))
             dot4 = np.sum(d_k)
             theta = - (0.5*dot2 + 0.5 *dot3 - dot4)/dot1
-            # print("theta", theta, np.shape(alpha), np.shape(d_k))
             
         else:
             theta = 1
