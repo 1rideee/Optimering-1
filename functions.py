@@ -130,12 +130,12 @@ def kernal_laplacian(x,y,sigma=1):
     return np.exp(-np.linalg.norm(x - y,2) / sigma)
     
 
-def kernal_inv_multiquadratic(x,y,sigma=1):
+def kernal_inv_multiquadratic(x,y,sigma=1, s=1):
     '''
     Compute the inverse multiquadratic kernel between two vectors x and y.
     '''
 
-    return 1 / np.sqrt(1 + np.linalg.norm(x - y, 2)**2 / sigma**2)
+    return 1 /(sigma**2 + np.linalg.norm(x - y, 2)**2 )**s
 
 
 
@@ -436,8 +436,8 @@ def plot_db(x,y, alpha, ker = kernal_linear, C=5):
 
     plt.scatter(x[:, 0], x[:, 1], c=y, cmap='coolwarm', edgecolors='k')
     # plt.title("Data points with boundary")
-    plt.xlabel("Feature 1")
-    plt.ylabel("Feature 2")
+    # plt.xlabel("Feature 1")
+    # plt.ylabel("Feature 2")
     plt.show()    
     # fig = plt.figure()
     # ax = fig.add_subplot(111, projection='3d')
