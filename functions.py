@@ -395,8 +395,27 @@ def gradient_descent_linesearch(alpha0, G, y , tau0, niter, C=100, L = 10, tol =
 
 
 
-
 def plot_db(x,y, alpha, ker = kernal_linear, C=5):
+    """
+    Plot the decision boundary of the SVM.
+
+    Parameters
+    ----------
+    x : numpy array
+        The input data.
+    y : numpy array
+        The labels.
+    alpha : numpy array
+        The dual variables.
+    ker : function, optional
+        The kernel function. The default is kernal_linear.
+    C : float, optional
+        The penalty parameter. The default is 5.
+
+    Returns
+    -------
+    None.
+    """
     
     w = compute_w(alpha, y, x, kernel = ker)
 
@@ -405,29 +424,29 @@ def plot_db(x,y, alpha, ker = kernal_linear, C=5):
 
 
     res = 100
-    xx, yy = np.meshgrid(np.linspace(-8, 8, res), np.linspace(-8, 8, res))
+    
+    xx, yy = np.meshgrid(np.linspace(np.min(x)-1, np.max(x)+1, res), np.linspace(np.min(x)-1, np.max(x)+1, res))
 
     Z = np.array([w(np.array([xx.ravel()[i], yy.ravel()[i]])) for i in range(len(xx.ravel()))])+b
 
     Z = Z.reshape(res,res)
-    print("Z", np.max(Z), np.min(Z))
+    # print("Z", np.max(Z), np.min(Z))
     plt.contourf(xx, yy, Z, levels=[-100,0,100],  colors= ["blue","red"], alpha=0.5)
     
 
     plt.scatter(x[:, 0], x[:, 1], c=y, cmap='coolwarm', edgecolors='k')
-    plt.title("Data points with boundary")
+    # plt.title("Data points with boundary")
     plt.xlabel("Feature 1")
     plt.ylabel("Feature 2")
-    plt.show()
-    #plotting a 3d surface fo Z
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    ax.plot_surface(xx, yy, Z, cmap='viridis', edgecolor='none')
-    ax.set_xlabel('X1')
-    ax.set_ylabel('X2')
-    ax.set_zlabel('Z')
-    ax.set_title('3D Surface Plot of Z')
-    plt.show()
+    plt.show()    
+    # fig = plt.figure()
+    # ax = fig.add_subplot(111, projection='3d')
+    # ax.plot_surface(xx, yy, Z, cmap='viridis', edgecolor='none')
+    # ax.set_xlabel('X1')
+    # ax.set_ylabel('X2')
+    # ax.set_zlabel('Z')
+    # ax.set_title('3D Surface Plot of Z')
+    # plt.show()
 
 
 def compute_w(alpha, y, X_train, kernel):
@@ -443,32 +462,53 @@ def compute_w(alpha, y, X_train, kernel):
 
 def compute_b(alpha, y, K, C):
     """Estimate bias b using support vectors with 0 < alpha < C."""
-    support_vector_indices = np.where((alpha > 0) & (alpha < C))[0]
-    if len(support_vector_indices) == 0:
+    svm = np.where((alpha > 0) & (alpha < C))[0]
+    if len(svm) == 0:
         print("Warning: No suitable support vectors found to compute b.")
         return 0.0
 
-    b_vals = []
-    i= support_vector_indices[0]
+    i = svm[0]
 
     return y[i] - np.sum(alpha * y * K[:, i])
 
 
+
 def w_b(alpha, y, x, C):
+    """Compute w and b for the linear SVM using the dual solution alpha.
     
-    # I_s = np.where(alpha > 0 and alpha < C)
+    Parameters
+    ----------
+    alpha : numpy array
+        The dual variables.
+    y : numpy array
+        The labels.
+        
+    x : numpy array
+        The input data.
+    C : float
+        The penalty parameter.
+    Returns
+    -------
+    w : numpy array
+        The weight vector.
+    b : float
+        The bias term.
+    """
+
     I_s = [i for i in range(len(alpha)) if alpha[i] > 0 and alpha[i] < C]
     
     w = np.sum(alpha[I_s]*y[I_s]*x[I_s].T, axis=1) 
     b = y[I_s[0]] - np.dot(w, x[I_s[0]])
     return w, b
-    
+
+
 
 
 def plot_solution(x, y, w, b):
 
     plt.scatter(x[:,0], x[:,1], c=y)
-    plt.plot([-3, 3], [(-b - w[0] * (-3)) / w[1], (-b - w[0] * 3) / w[1]], 'k-')
+    plt.plot([-3, 3], [(-b - w[0] * (-3)) / w[1], (-b - w[0] * 3) / w[1]], 'k-', label='Decision boundary')
     #excact solution
-    plt.plot([-3, 3], [(-1 - 1 * (-3)), (-1 - 1 * 3) ], 'r--')
+    plt.plot([-3, 3], [(-1 - 1 * (-3)), (-1 - 1 * 3) ], 'r--', label='Exact solution')
+    plt.legend()
     plt.show()
