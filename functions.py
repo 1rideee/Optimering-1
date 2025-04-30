@@ -243,7 +243,8 @@ def projection(alpha, y, C=1.0, tol=1e-6, max_iter=1000, delta=1e-3):
         else:
             low = lambda_mid
             
-    print("Warning: Maximum iterations reached without convergence. lambda:", lambda_mid)
+    #Optional print for warning when projection does not converge
+    # print("Warning: Maximum iterations reached without convergence. lambda:", lambda_mid)
     return alpha
 
 def alpha_Lagrange(beta, lam, y, C):
