@@ -3,6 +3,7 @@ from sklearn.metrics.pairwise import pairwise_kernels
 import numpy as np
 import matplotlib.pyplot as plt
 from numpy.random import default_rng
+from scipy.optimize import approx_fprime
 
 
 def TestLinear(w,b,n_A,n_B,margin,**kwargs):
@@ -512,3 +513,274 @@ def plot_solution(x, y, w, b):
     plt.plot([-3, 3], [(-1 - 1 * (-3)), (-1 - 1 * 3) ], 'r--', label='Exact solution')
     plt.legend()
     plt.show()
+
+
+
+def projection_AL(vector, proj_par):
+    lower_bounds = proj_par[0]
+    upper_bounds = proj_par[1]
+    dimension = len(vector)
+    proj_vector = np.array([])
+    
+    for k in range(0, dimension):
+        if vector[k]<lower_bounds[k]:
+            proj_vector = np.append(proj_vector, np.array([lower_bounds[k]]))
+        elif vector[k] > upper_bounds[k]:
+            proj_vector = np.append(proj_vector, np.array([upper_bounds[k]]))
+        else:
+            proj_vector = np.append(proj_vector, np.array([vector[k]]))
+    return proj_vector
+
+def general_BB_steplength(vec_k, vec_k1, grad, grad_par, taumax=1e5, taumin=1e-5):
+    nevner = np.dot((vec_k1 - vec_k), (grad(vec_k1, grad_par) - grad(vec_k, grad_par)))
+    if  nevner<= 0:
+        return taumax
+    tau = np.dot((vec_k1 - vec_k), (vec_k1 - vec_k)) / nevner
+    return max(min(tau, taumax), taumin)
+
+def constraints(vec, constr_par = False):
+    if constr_par:
+        x, y  = constr_par[0], constr_par[1]
+    d = 2
+    M = len(x)
+
+    w = vec[0:d]
+    b = vec[d]
+    xi = vec[d+1:d+M+1]
+    s = vec[d+M+1:]
+
+    c_vec = np.array([])
+    for i in range(0, len(x)):
+        c_vec = np.append(c_vec, np.array([y[i]*(np.inner(w, x[i]) + b) + xi[i] -s[i]-1]))
+    
+    return c_vec
+
+def BCLM(vec_0, lambd_0, mu_0, tol_1, tol_2, maxiter, func, func_par, constr, constr_par, grad, grad_par, project, project_par, linesearch, linesearch_par): #Algoritme 17.4 i boka
+    
+    tol_1_k = 1/mu_0
+    tol_2_k = 1/mu_0**(0.1)
+
+    vec_k = vec_0
+    lambd_k = lambd_0
+    mu_k = mu_0
+
+    grad_par[0] = lambd_k
+    grad_par[1] = mu_k
+    func_par[0] = lambd_k
+    func_par[1] = mu_k
+
+    for _ in range(0, maxiter):
+        print("iterasjon BCLM", _)
+        tau_0 = 1
+        projected_gradient_method = general_projected_gradient_linesearch(vec_k, tau_0, func, func_par, grad, grad_par, project, project_par, linesearch, linesearch_par, tol = tol_1_k, L = 10)
+
+        #general_projected_gradient_linesearch(vec_0, tau_0, func, func_par, grad, grad_par, project, project_par, linesearch, linesearch_par, tol, L = 10)
+
+        vec_k= projected_gradient_method[0]
+        d_k = projected_gradient_method[2]
+
+        c_k = constr(vec_k, constr_par)
+        c_k_norm = np.linalg.norm(c_k)
+        print(vec_k,"vecc BCL;")
+        print(c_k_norm,"ck")
+
+        if c_k_norm <= tol_2_k:
+            print("ck mindre")
+            if c_k_norm <= tol_2 and np.linalg.norm(d_k) <= tol_1:
+                return vec_k, lambd_k
+            
+            lambd_k = lambd_k - mu_k*c_k
+            tol_1_k = tol_1_k/mu_k
+            tol_2_k = tol_2_k/mu_k**(0.9)
+            print(tol_1_k,tol_2_k,"tols")
+
+            grad_par[0] = lambd_k
+            func_par[0] = lambd_k
+            linesearch_par[0] = lambd_k
+
+        
+        else:
+            print("else")
+            mu_k = 100*mu_k
+            tol_1_k = tol_1_k/mu_k
+            tol_2_k = tol_2_k/mu_k**(0.1)
+            print(tol_1_k,tol_2_k,"tols")
+            grad_par[1] = mu_k
+            func_par[1] = mu_k
+            linesearch_par[1] = mu_k
+
+    return "Ingen konvergens"
+
+
+
+def AL(vec, AL_par): #kontroller at dette er rett
+
+    lambd = AL_par[0]
+    mu = AL_par[1]
+
+    d = AL_par[2]
+    M = AL_par[3]
+
+    x = AL_par[4]
+    y = AL_par[5]
+
+    C = AL_par[6]
+    # print(vec,"al")
+    w = vec[0:d]
+    b = vec[d]
+    xi = vec[d+1:d+1+M]
+    s = vec[d+1+M:]
+    
+    AL = 0.5*np.linalg.norm(w)**2
+    for i in range(0, len(xi)):
+        indreprod = np.inner(w, x[i])
+        AL = AL + C*xi[i] - lambd[i]*(y[i]*(indreprod + b) + xi[i] - s[i] - 1) + 0.5*mu*(y[i]*(indreprod + b) + xi[i] - s[i] - 1)**2
+    return AL
+
+
+
+
+def grad_AL(vec, gradAL_par): #Kontroller at dette er rett
+    
+    lambd = gradAL_par[0]
+    mu = gradAL_par[1]
+
+    d = gradAL_par[2]
+    M = gradAL_par[3]
+
+    x = gradAL_par[4]
+    y = gradAL_par[5]
+
+    C = gradAL_par[6]
+
+    w = vec[0:d]
+    b = vec[d]
+    xi = vec[d+1:d+1+M]
+    s = vec[d+1+M:]
+    
+    grad_AL = np.array([])
+    
+    #Elements from w
+    for k in range(0, d):
+        grad_k = w[k]
+        for i in range(0, M):
+            indresum = 0
+            for l in range(0, d):
+                indresum = indresum + 2*x[i][k]*x[i][l]*w[l]
+            grad_k = grad_k - lambd[i]*y[i]*x[i][k] + 0.5*mu*(y[i]**2 * indresum + 2*y[i]**2 * b * x[i][k] + 2*y[i]*xi[i]*x[i][k] - 2*y[i]*s[i]*x[i][k] -2*y[i]*x[i][k])
+        grad_AL = np.append(grad_AL, np.array([grad_k]))
+    
+    #Elements from b
+    grad_b = 0
+    for i in range(0, M):
+        grad_b = grad_b - lambd[i]*y[i] + 0.5*mu*(2*y[i]**2*b + 2*y[i]**2*np.inner(w, x[i]) + 2*y[i]*xi[i] - 2*y[i]*s[i] - 2*y[i])
+    grad_AL = np.append(grad_AL, np.array([grad_b]))
+
+    #Elements from xi
+    for i in range(0, M):
+        grad_xi = C - lambd[i] + 0.5*mu*(2*xi[i] + 2*y[i]*np.inner(w, x[i]) + 2*y[i]*b - 2*s[i] - 2)
+        grad_AL = np.append(grad_AL, np.array([grad_xi]))
+
+    #Elements from s
+    for i in range(0, M):
+        grad_s = -lambd[i] + 0.5*mu*(2*s[i] - 2*y[i]*np.inner(w, x[i]) - 2*y[i]*b - 2*xi[i] + 2)
+        grad_AL = np.append(grad_AL, np.array([grad_s]))
+    
+    return grad_AL
+
+
+
+def general_projected_gradient_linesearch(vec_0, tau_0, func, func_par, grad, grad_par, project, project_par, linesearch, linesearch_par, tol, L = 10, niter = 1000):
+
+    vec = vec_0
+    tau = tau_0
+    
+    f_ref = np.inf
+    f_best = func(vec, func_par)
+    f_c = f_best
+    ell = 0
+    f_ks = np.zeros(niter)
+
+    for i in range(niter):
+        
+        # if i == 0:
+            # print(vec,tau,grad_par,project_par)
+        d_k = project(vec -  tau*grad(vec, grad_par), project_par) - vec
+        
+        if np.max(np.linalg.norm(d_k)) < tol:
+            print("Converged after", i, "iterations")
+            # print(vec)
+            return vec, f_ks, d_k
+        
+        if i%500 == 0:
+            print("Iteration", i, ":", np.max(np.abs(d_k))) 
+        
+        f_k = func(vec, func_par)
+        f_ks[i] = f_k
+        if f_k < f_best:
+            f_best = f_k
+            f_c = f_k
+            ell = 0
+        else:
+            f_c = np.max([f_c, f_k])
+            ell = ell + 1
+        if ell == L:
+            f_ref = f_c
+            f_c = f_k
+            ell = 0
+        # print(ell,"l")
+        if func(vec + d_k, func_par) > f_ref:
+            theta = linesearch(vec, d_k, linesearch_par)
+            
+        else:
+            theta = 1
+            
+        vec_temp=vec
+        vec = vec + theta * d_k
+        # print(np.linalg.norm(vec_temp-vec,1),"vec-vek")
+        tau = general_BB_steplength(vec-theta*d_k, vec, grad, grad_par, taumax=1e5, taumin=1e-5)
+
+
+
+    print("Did not converge after", niter, "iterations")
+    
+    return vec, f_ks, d_k
+
+
+def linesearch_AL(vec, d_k, linesearch_par):
+    
+    lambd = linesearch_par[0]
+    mu = linesearch_par[1]
+
+    d = linesearch_par[2]
+    M = linesearch_par[3]
+
+    x = linesearch_par[4]
+    y = linesearch_par[5]
+
+    C = linesearch_par[6]
+    # print(vec,"line")
+    w = vec[0:d]
+    b = vec[d]
+    xi = vec[d+1:d+1+M]
+    s = vec[d+1+M:]
+
+    d_w = d_k[0:d]
+    d_b = d_k[d]
+    d_xi = d_k[d+1:d+1+M]
+    d_s = d_k[d+1+M:]
+    
+    A = np.linalg.norm(d_k[0:d],2)**2
+    B = np.inner(w, d_w) + C*np.sum(d_xi)
+
+    for i in range(0, M):
+        indprod_1 = np.inner(d_w, x[i])
+        indprod_2 = np.inner(w, x[i])
+        
+        A = A + mu* (indprod_1**2 + d_k[d]**2 + d_k[d+i]**2 + d_k[d+M+i]**2 + 2*d_k[d]*indprod_1 + 2*y[i]*d_k[d+i]*indprod_1 - 2*y[i]*d_k[d+M+i]*indprod_1 + 2*y[i]*d_k[d]*d_k[d+i] - 2*y[i]*d_k[d]*d_k[d+M+i] - 2*d_k[d+i]*d_k[d+M+i])
+
+        B = B - lambd[i]* (y[i]*(indprod_1 + d_k[d]) + d_k[d+i] - d_k[d+M+i]) + mu*(indprod_2 * indprod_1 + b*d_k[d] + xi[i]*d_k[d+i] + s[i]*d_k[d+M+i] + b*indprod_1 + d_k[d]*indprod_2 + y[i]*xi[i]*indprod_1 + y[i]*d_k[d+i]*indprod_2 - y[i]*s[i]*indprod_1 - y[i]*d_k[d+M+i]*indprod_2 - y[i]*indprod_1 + y[i]*d_k[d]*xi[i] + y[i]*d_k[d+i]*b - y[i]*d_k[d+M+i]*b - y[i]*d_k[d]*s[i] - y[i]*d_k[d] - d_k[d+i]*s[i] - d_k[d+M+i]*xi[i])
+    
+    theta = -B/A
+    
+    return theta
