@@ -8,6 +8,7 @@ from scipy.optimize import approx_fprime
 
 def TestLinear(w,b,n_A,n_B,margin,**kwargs):
     '''
+    Sample code for testing 
     Parameters
     ----------
     w : non-zero vector
@@ -141,10 +142,37 @@ def kernal_inv_multiquadratic(x,y,sigma=1, s=1):
 
 
 def f(alpha, A):
+    """
+    Compute the objective function value for the dual problem.
+    Parameters
+    ----------
+    alpha : numpy array
+        The dual variables.
+    A : numpy array
+        The Gram matrix.
+    Returns
+    -------
+    f_value : float
+        The value of the objective function.
+    """
     return 0.5*np.dot(alpha, np.dot(A,alpha)) - np.sum(alpha)
 
 
 def gradientf(alpha, A):
+    """
+    Compute the gradient of the objective function.
+    Parameters
+    ----------
+    alpha : numpy array
+        The dual variables.
+    A : numpy array
+        The Gram matrix.
+    Returns
+    -------
+    grad : numpy array
+        The gradient of the objective function.
+    """
+    # Analytic gradient of the objective function
     return np.dot(A, alpha) - 1
     
 
@@ -357,8 +385,8 @@ def gradient_descent_linesearch(alpha0, G, y , tau0, niter, C=100, L = 10, tol =
             print("Converged after", i, "iterations")
             return alpha, f_ks
         
-        if i%500 == 0:
-            print("Iteration", i, ":", np.max(np.abs(d_k))) 
+        # if i%500 == 0:
+        #     print("Iteration", i, ":", np.max(np.abs(d_k))) 
         
         f_k = f(alpha, A)
         f_ks[i] = f_k
@@ -398,7 +426,7 @@ def gradient_descent_linesearch(alpha0, G, y , tau0, niter, C=100, L = 10, tol =
 
 def plot_db(x,y, alpha, ker = kernal_linear, C=5):
     """
-    Plot the decision boundary of the SVM.
+    Plots the decision boundary of the SVM.
 
     Parameters
     ----------
@@ -411,7 +439,7 @@ def plot_db(x,y, alpha, ker = kernal_linear, C=5):
     ker : function, optional
         The kernel function. The default is kernal_linear.
     C : float, optional
-        The penalty parameter. The default is 5.
+        The penalty parameter. 
 
     Returns
     -------
@@ -453,6 +481,24 @@ def plot_db(x,y, alpha, ker = kernal_linear, C=5):
 def compute_w(alpha, y, X_train, kernel):
     """
     Compute w(x) for the nonlinear SVM.
+
+    Parameters
+    ----------
+
+    alpha : numpy array
+        The dual variables.
+    y : numpy array
+        The labels.
+    X_train : numpy array
+        The training data.
+    kernel : function
+        The kernel function.
+
+    Returns
+    -------
+    w_function : function
+        A function that computes w(x) for a given x.
+    
     """
 
     def w_function(x):
@@ -462,7 +508,24 @@ def compute_w(alpha, y, X_train, kernel):
 
 
 def compute_b(alpha, y, K, C):
-    """Estimate bias b using support vectors with 0 < alpha < C."""
+    """Estimate bias b using support vectors with 0 < alpha < C.
+    
+    Parameters
+    ----------
+    alpha : numpy array
+        The dual variables.
+    y : numpy array
+        The labels.
+    K : numpy array
+        The kernel matrix.
+    C : float
+        The penalty parameter.
+
+    Returns
+    -------
+    b : float
+        The bias term.
+    """
     svm = np.where((alpha > 0) & (alpha < C))[0]
     if len(svm) == 0:
         print("Warning: No suitable support vectors found to compute b.")
@@ -506,6 +569,13 @@ def w_b(alpha, y, x, C):
 
 
 def plot_solution(x, y, w, b):
+    """
+    Plot the decision boundary and the data points.
+
+    ----------
+    Returns:
+        None
+    """
 
     plt.scatter(x[:,0], x[:,1], c=y)
     plt.plot([-3, 3], [(-b - w[0] * (-3)) / w[1], (-b - w[0] * 3) / w[1]], 'k-', label='Decision boundary')
@@ -514,6 +584,38 @@ def plot_solution(x, y, w, b):
     plt.legend()
     plt.show()
 
+def test_kernel(alpha0, x, y, ker=kernal_gaussian, niter=1000, C=1, tau0=0.1, tol=1e-7, plot=True):
+    """
+    Test function to test the kernelized gradient descent.
+    This function performs gradient descent on the kernelized SVM problem using the specified kernel function.
+    It initializes the alpha values, computes the kernel matrix, and performs gradient descent, 
+    and plots the result if needed.
+
+    Parameters:
+    alpha0 : np.array
+        Initial alpha values.
+    x : np.array
+        Input data points.
+    y : np.array
+        Labels for the data points.
+    ker : function
+        Kernel function to be used.
+    niter : int
+        Number of iterations for gradient descent.
+    C : float
+        Regularization parameter.
+    tau0 : float
+        Initial step size for gradient descent.
+    tol : float
+        Tolerance for convergence.
+    plot : bool
+        Whether to plot the decision boundary or not.
+    """
+    G = pairwise_kernels(x, metric = ker)  
+    alpha, fk = gradient_descent_linesearch(alpha0, G, y, tau0=tau0, niter=niter, C=C, tol=tol)
+    
+    if plot:
+        plot_db(x, y, alpha, ker = ker, C=C)
 
 
 def projection_AL(vector, proj_par):
@@ -691,7 +793,48 @@ def grad_AL(vec, gradAL_par): #Kontroller at dette er rett
 
 
 def general_projected_gradient_linesearch(vec_0, tau_0, func, func_par, grad, grad_par, project, project_par, linesearch, linesearch_par, tol, L = 10, niter = 1000):
+    """
+    General projected gradient descent with backtracking line search.
 
+    Parameters
+    ----------
+    vec_0 : numpy array
+        Initial point.
+    tau_0 : float
+        Initial step size.
+    func : function
+        Objective function to be minimized.
+    func_par : list
+        Parameters for the objective function.
+    grad : function
+        Gradient of the objective function.
+    grad_par : list
+        Parameters for the gradient function.
+    project : function
+        Projection function.
+    project_par : list
+        Parameters for the projection function.
+    linesearch : function
+        Line search function.
+    linesearch_par : list
+        Parameters for the line search function.
+    tol : float
+        Tolerance for convergence.
+    L : int, optional
+        Number of iterations before reference function is updated.
+        The default is 10.
+    niter : int, optional
+        Number of iterations.
+        The default is 1000.
+    Returns
+    -------
+    vec : numpy array
+        Optimal point.
+    f_ks : numpy array
+        Function values at each iteration.
+    d_k : numpy array
+        Search direction at the last iteration.
+    """
     vec = vec_0
     tau = tau_0
     
@@ -748,6 +891,23 @@ def general_projected_gradient_linesearch(vec_0, tau_0, func, func_par, grad, gr
 
 
 def linesearch_AL(vec, d_k, linesearch_par):
+    """
+    Perform a line search to find the optimal step size for the projected gradient descent.
+
+    Parameters
+    ----------
+    vec : numpy array
+        The current point.
+    d_k : numpy array
+        The search direction.
+    linesearch_par : list
+        Parameters for the line search.
+        [lambda, mu, d, M, x, y, C]
+    Returns
+    -------
+    theta : float
+        The optimal step size.
+    """
     
     lambd = linesearch_par[0]
     mu = linesearch_par[1]
