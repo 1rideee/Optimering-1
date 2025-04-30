@@ -851,7 +851,7 @@ def general_projected_gradient_linesearch(vec_0, tau_0, func, func_par, grad, gr
             # print(vec,tau,grad_par,project_par)
         d_k = project(vec -  tau*grad(vec, grad_par), project_par) - vec
         
-        if np.max(np.linalg.norm(d_k)) < tol:
+        if (np.linalg.norm(d_k)) < tol:
             print("Converged after", i, "iterations")
             # print(vec)
             return vec, f_ks, d_k
